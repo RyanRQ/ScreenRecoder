@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.ImageFormat;
 import android.hardware.Camera;
-import android.media.MediaFormat;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.os.Bundle;
@@ -22,7 +21,6 @@ import android.widget.Button;
 
 import com.ryan.screenrecoder.R;
 import com.ryan.screenrecoder.coder.MediaEncoder;
-import com.ryan.screenrecoder.glec.STextureRender;
 
 import java.io.IOException;
 import java.util.Iterator;

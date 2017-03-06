@@ -8,7 +8,7 @@ import android.opengl.Matrix;
 import android.util.Log;
 
 import com.ryan.screenrecoder.R;
-import com.ryan.screenrecoder.util.RawResourceReader;
+import com.ryan.screenrecoder.util.*;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -69,27 +69,39 @@ public  class STextureRender {
 
     private FloatBuffer mTriangleVertices;
 
+//    private static final String VERTEX_SHADER =
+//            "uniform mat4 uMVPMatrix;\n" +
+//                    "uniform mat4 uSTMatrix;\n" +
+//                    "attribute vec4 aPosition;\n" +
+//                    "attribute vec4 aTextureCoord;\n" +
+//                    "varying vec4 vTextureCoord;\n" +
+//                    "void main() {\n" +
+//                    "    gl_Position = uMVPMatrix * aPosition;\n" +
+//                    "    vTextureCoord = uSTMatrix * aTextureCoord;\n" +
+//                    "}\n";
+//
+//    private static final String FRAGMENT_SHADER =
+//            "#extension GL_OES_EGL_image_external : require\n" +
+//                    "precision mediump float;\n" +      // highp here doesn't seem to matter
+//                    "varying vec4 vTextureCoord;\n" +
+//                    "uniform samplerExternalOES sTexture;\n" +
+//                    "void main() {\n" +
+//                    "    gl_FragColor = texture2D(sTexture, vTextureCoord.xy/vTextureCoord.z);" +
+//                    "}\n";
+
     private static final String VERTEX_SHADER =
-            "uniform mat4 uMVPMatrix;\n" +
-                    "uniform mat4 uSTMatrix;\n" +
-                    "attribute vec4 aPosition;\n" +
-                    "attribute vec4 aTextureCoord;\n" +
-                    "varying vec4 vTextureCoord;\n" +
-                    "void main() {\n" +
-                    "    gl_Position = uMVPMatrix * aPosition;\n" +
-                    "    vTextureCoord = uSTMatrix * aTextureCoord;\n" +
-                    "}\n";
+            "uniform mat4 uMVPMatrix;" +
+                    "attribute vec4 aPosition;" +
+                    "void main() {" +
+                    "    gl_Position = uMVPMatrix * aPosition;" +
+                    "}";
 
     private static final String FRAGMENT_SHADER =
-            "#extension GL_OES_EGL_image_external : require\n" +
-                    "precision mediump float;\n" +      // highp here doesn't seem to matter
-                    "varying vec4 vTextureCoord;\n" +
-                    "uniform samplerExternalOES sTexture;\n" +
-                    "void main() {\n" +
-                    "    gl_FragColor = texture2D(sTexture, vTextureCoord.xy/vTextureCoord.z);" +
-                    "}\n";
-
-
+            "precision mediump float;" +
+                    "uniform vec4 uColor;" +
+                    "void main() {" +
+                    "    gl_FragColor = uColor;" +
+                    "}";
 
 
     private float[] mMVPMatrix = new float[16];
@@ -121,7 +133,7 @@ public  class STextureRender {
     private Context context;
     public STextureRender(Context context) {
         this.context=context;
-        Matrix.setIdentityM(mSTMatrix, 0);
+//        Matrix.setIdentityM(mSTMatrix, 0);
     }
 
     public int getTextureId() {
@@ -156,7 +168,7 @@ public  class STextureRender {
 
         GLES20.glUniformMatrix4fv(textureTranformHandle, 1, false, videoTextureTransform, 0);
         //GLES20.GL_TRIANGLES（以无数小三角行的模式）去绘制出这个纹理图像
-        GLES20.glDrawElements(GLES20.GL_TRIANGLES, drawOrder.length, GLES20.GL_UNSIGNED_SHORT, drawListBuffer);
+        GLES20.glDrawElements(GLES20.GL_TRIANGLE_STRIP, drawOrder.length, GLES20.GL_UNSIGNED_SHORT, drawListBuffer);
         GLES20.glDisableVertexAttribArray(positionHandle);
         GLES20.glDisableVertexAttribArray(textureCoordinateHandle);
 
@@ -227,18 +239,22 @@ public  class STextureRender {
      * Initializes GL state.  Call this after the EGL surface has been created and made current.
      */
     public void surfaceCreated() {
-         final String vertexShader = RawResourceReader.readTextFileFromRawResource(context, R.raw.vetext_sharder);
-        final String fragmentShader = RawResourceReader.readTextFileFromRawResource(context, R.raw.fragment_sharder);
+        //todo 着色器初始化
+//         final String vertexShader = RawResourceReader.readTextFileFromRawResource(context, R.raw.vetext_sharder);
+//        final String fragmentShader = RawResourceReader.readTextFileFromRawResource(context, R.raw.fragment_sharder);
 
-        final int vertexShaderHandle = ShaderHelper.compileShader(GLES20.GL_VERTEX_SHADER, vertexShader);
-        final int fragmentShaderHandle = ShaderHelper.compileShader(GLES20.GL_FRAGMENT_SHADER, fragmentShader);
+        final int vertexShaderHandle = ShaderHelper.compileShader(GLES20.GL_VERTEX_SHADER, VERTEX_SHADER);
+        final int fragmentShaderHandle = ShaderHelper.compileShader(GLES20.GL_FRAGMENT_SHADER, FRAGMENT_SHADER);
         mProgram = ShaderHelper.createAndLinkProgram(vertexShaderHandle, fragmentShaderHandle,
                 new String[]{"texture", "vPosition", "vTexCoordinate", "textureTransform"});
+//        mProgram = com.ryan.screenrecoder.coder.GlUtil.createProgram(VERTEX_SHADER,FRAGMENT_SHADER);
         GLES20.glUseProgram(mProgram);
         textureParamHandle = GLES20.glGetUniformLocation(mProgram, "texture");
+        checkGlError("glBindTexture mTextureID");
         textureCoordinateHandle = GLES20.glGetAttribLocation(mProgram, "vTexCoordinate");
         positionHandle = GLES20.glGetAttribLocation(mProgram, "vPosition");
         textureTranformHandle = GLES20.glGetUniformLocation(mProgram, "textureTransform");
+        checkGlError("glTexParameter");
         setupVertexBuffer();
         setupTexture();
 //        int[] textures = new int[1];
@@ -246,7 +262,6 @@ public  class STextureRender {
 //
 //        mTextureID = textures[0];
 //        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, mTextureID);
-//        checkGlError("glBindTexture mTextureID");
 //
 //        GLES20.glTexParameterf(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MIN_FILTER,
 //                GLES20.GL_NEAREST);
@@ -300,5 +315,4 @@ public  class STextureRender {
             throw new RuntimeException(op + ": glError " + error);
         }
     }
-
 }

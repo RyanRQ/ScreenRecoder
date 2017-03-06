@@ -11,9 +11,6 @@ import android.opengl.EGLSurface;
 import android.util.Log;
 import android.view.Surface;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-
 /**
  * Created by zx315476228 on 17-3-3.
  */
@@ -38,7 +35,7 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
     int mWidth = 1080;
     int mHeight = 1920;
     private Object mFrameSyncObject = new Object();     // guards mFrameAvailable
-    private boolean mFrameAvailable = false;
+    private boolean mFrameAvailable = true;
 
     public EGLRender(Surface surface, Context context) {
         this.context = context;
@@ -146,9 +143,7 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
         mSurfaceTexture = new SurfaceTexture(mTextureRender.getTextureId());
 //
         mSurfaceTexture.setOnFrameAvailableListener(this);
-
         decodeSurface = new Surface(mSurfaceTexture);
-
 //        mPixelBuf = ByteBuffer.allocateDirect(mWidth * mHeight * 4);
 //        mPixelBuf.order(ByteOrder.LITTLE_ENDIAN);
     }
@@ -233,8 +228,8 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
         }
 
         // Latch the data.
-//        mTextureRender.checkGlError("before updateTexImage");
         mSurfaceTexture.updateTexImage();
+        mTextureRender.checkGlError("before updateTexImage");
     }
 
     public boolean swapBuffers() {

@@ -2,6 +2,7 @@ package com.ryan.screenrecoder.coder;
 
 import android.content.Context;
 import android.graphics.SurfaceTexture;
+import android.hardware.Camera;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.media.ImageReader;
@@ -69,11 +70,13 @@ public class MediaEncoder extends Thread {
 
         }
         virtualDisplay = projection.createVirtualDisplay("screen", screen_width, screen_height, screen_dpi,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC, eglRender.getDecodeSurface(), null, null);
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC,eglRender==null?surface: eglRender.getDecodeSurface(), null, null);
+        Camera camera;
+        camera.
         startRecordScreen();
         release();
     }
-
+    private Surface surface;
     /**
      * 初始化编码器
      */
@@ -85,24 +88,12 @@ public class MediaEncoder extends Thread {
         mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, FRAME_INTERVAL);
         mEncoder = MediaCodec.createEncoderByType(mime_type);
         mEncoder.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-        eglRender = new EGLRender(mEncoder.createInputSurface(),context);
+        surface=mEncoder.createInputSurface();
+        eglRender = new EGLRender(surface,context);
         eglRender.setCallBack(new EGLRender.onFrameCallBack() {
             @Override
             public void onUpdate() {
-                int index = mEncoder.dequeueOutputBuffer(mBufferInfo, TIMEOUT_US);
-                if (index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                    resetOutputFormat();
-                } else if (index == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                    Log.d("---", "retrieving buffers time out!");
-                    try {
-                        // wait 10ms
-                        Thread.sleep(10);
-                    } catch (InterruptedException e) {
-                    }
-                } else if (index >= 0) {
-                    encodeToVideoTrack(index);
-                    mEncoder.releaseOutputBuffer(index, false);
-                }
+                startEncode();
             }
         });
         mEncoder.start();
@@ -113,10 +104,31 @@ public class MediaEncoder extends Thread {
      * 开始录屏
      */
     private void startRecordScreen() {
-        eglRender.start();
+        if(eglRender!=null){
+            eglRender.start();
+        }else {
+            while (!mQuit.get()){
+                startEncode();
+            }
+        }
         release();
     }
-
+    private void startEncode(){
+        int index = mEncoder.dequeueOutputBuffer(mBufferInfo, TIMEOUT_US);
+        if (index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+            resetOutputFormat();
+        } else if (index == MediaCodec.INFO_TRY_AGAIN_LATER) {
+            Log.d("---", "retrieving buffers time out!");
+            try {
+                // wait 10ms
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+            }
+        } else if (index >= 0) {
+            encodeToVideoTrack(index);
+            mEncoder.releaseOutputBuffer(index, false);
+        }
+    }
     private void encodeToVideoTrack(int index) {
         Log.e("---", "有了输出数据");
         ByteBuffer encodeData = mEncoder.getOutputBuffer(index);
@@ -161,8 +173,9 @@ public class MediaEncoder extends Thread {
 
     public void stopScreen() {
         mQuit.set(true);
+        if(eglRender!=null){
         eglRender.stop();
-
+        }
     }
     public void release() {
 
