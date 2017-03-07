@@ -71,8 +71,6 @@ public class MediaEncoder extends Thread {
         }
         virtualDisplay = projection.createVirtualDisplay("screen", screen_width, screen_height, screen_dpi,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC,eglRender==null?surface: eglRender.getDecodeSurface(), null, null);
-        Camera camera;
-        camera.
         startRecordScreen();
         release();
     }
