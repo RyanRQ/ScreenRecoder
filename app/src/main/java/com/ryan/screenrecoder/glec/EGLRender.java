@@ -249,7 +249,7 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
             callBack.onUpdate();
             setPresentationTime(computePresentationTimeNsec(count++));
             current_time = System.currentTimeMillis();
-            if (current_time - time >= 125) {
+            if (current_time - time >= 125) {//todo 帧率控制
                 swapBuffers();
                 time = current_time;
             }
