@@ -8,6 +8,8 @@ import android.opengl.EGLContext;
 import android.opengl.EGLDisplay;
 import android.opengl.EGLExt;
 import android.opengl.EGLSurface;
+import android.opengl.GLES20;
+import android.opengl.Matrix;
 import android.util.Log;
 import android.view.Surface;
 
@@ -28,17 +30,23 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
     private EGLSurface mEGLSurface = EGL14.EGL_NO_SURFACE;
     private EGLSurface mEGLSurfaceEncoder = EGL14.EGL_NO_SURFACE;
 
-    private Context context;
-    //    private Surface encodeSurface;
     private Surface decodeSurface;
 
     int mWidth = 1080;
     int mHeight = 1920;
-    private Object mFrameSyncObject = new Object();     // guards mFrameAvailable
     private boolean mFrameAvailable = true;
+    private onFrameCallBack callBack;
 
-    public EGLRender(Surface surface, Context context) {
-        this.context = context;
+    public void setCallBack(onFrameCallBack callBack) {
+        this.callBack = callBack;
+    }
+
+    public interface onFrameCallBack {
+        void onUpdate();
+    }
+
+
+    public EGLRender(Surface surface) {
         eglSetup(surface);
         makeCurrent();
         setup();
@@ -120,7 +128,6 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
         if (mEGLSurfaceEncoder == null) {
             throw new RuntimeException("surface was null");
         }
-//        encodeSurface = surface;
     }
 
     /**
@@ -136,16 +143,14 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
      * Creates interconnected instances of TextureRender, SurfaceTexture, and Surface.
      */
     private void setup() {
-        mTextureRender = new STextureRender(context);
+        mTextureRender = new STextureRender();
         mTextureRender.surfaceCreated();
 
-//        if (VERBOSE) Log.d(TAG, "textureID=" + mTextureRender.getTextureId());
+        if (VERBOSE) Log.d(TAG, "textureID=" + mTextureRender.getTextureId());
         mSurfaceTexture = new SurfaceTexture(mTextureRender.getTextureId());
-//
+        mSurfaceTexture.setDefaultBufferSize(1080, 1920);
         mSurfaceTexture.setOnFrameAvailableListener(this);
         decodeSurface = new Surface(mSurfaceTexture);
-//        mPixelBuf = ByteBuffer.allocateDirect(mWidth * mHeight * 4);
-//        mPixelBuf.order(ByteOrder.LITTLE_ENDIAN);
     }
 
     public Surface getDecodeSurface() {
@@ -207,29 +212,10 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
     }
 
     public void awaitNewImage() {
-        final int TIMEOUT_MS = 2500;
-
-        synchronized (mFrameSyncObject) {
-            while (!mFrameAvailable) {
-                try {
-                    // Wait for onFrameAvailable() to signal us.  Use a timeout to avoid
-                    // stalling the test if it doesn't arrive.
-                    mFrameSyncObject.wait(TIMEOUT_MS);
-                    if (!mFrameAvailable) {
-                        // TODO: if "spurious wakeup", continue while loop
-                        throw new RuntimeException("frame wait timed out");
-                    }
-                } catch (InterruptedException ie) {
-                    // shouldn't happen
-                    throw new RuntimeException(ie);
-                }
-            }
+        if (mFrameAvailable) {
             mFrameAvailable = false;
+            mSurfaceTexture.updateTexImage();
         }
-
-        // Latch the data.
-        mSurfaceTexture.updateTexImage();
-        mTextureRender.checkGlError("before updateTexImage");
     }
 
     public boolean swapBuffers() {
@@ -242,14 +228,7 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
 
     @Override
     public void onFrameAvailable(SurfaceTexture surfaceTexture) {
-        synchronized (mFrameSyncObject) {
-            if (mFrameAvailable) {
-                throw new RuntimeException("mFrameAvailable already set, frame could be dropped");
-            }
-            mFrameAvailable = true;
-            mFrameSyncObject.notifyAll();
-        }
-        Log.e("---", "有了数据");
+        mFrameAvailable = true;
     }
 
     private static long computePresentationTimeNsec(int frameIndex) {
@@ -258,16 +237,22 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
     }
 
     private boolean start;
+    private long time = 0;
+    private long current_time;
 
     public void start() {
         start = true;
         while (start) {
             makeCurrent(1);
             awaitNewImage();
-            drawImage(true);
+            drawImage();
             callBack.onUpdate();
             setPresentationTime(computePresentationTimeNsec(count++));
-            swapBuffers();
+            current_time = System.currentTimeMillis();
+            if (current_time - time >= 125) {
+                swapBuffers();
+                time = current_time;
+            }
         }
     }
 
@@ -276,17 +261,9 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
         start = false;
     }
 
-    public void drawImage(boolean invert) {
-        mTextureRender.drawFrame(mSurfaceTexture, invert);
+    public void drawImage() {
+        mTextureRender.drawFrame();
     }
 
-    private onFrameCallBack callBack;
 
-    public void setCallBack(onFrameCallBack callBack) {
-        this.callBack = callBack;
-    }
-
-public interface onFrameCallBack {
-    void onUpdate();
-}
 }

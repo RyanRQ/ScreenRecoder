@@ -1,11 +1,7 @@
 package com.ryan.screenrecoder.coder;
 
-import android.content.Context;
-import android.graphics.SurfaceTexture;
-import android.hardware.Camera;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
-import android.media.ImageReader;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
@@ -28,9 +24,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class MediaEncoder extends Thread {
     private final String TAG = "MediaEncoder";
 
-    private String mime_type = "video/avc";
+    private String mime_type = MediaFormat.MIMETYPE_VIDEO_AVC;
     private final int FRAME_RATE = 30;//30fps
-    private final int FRAME_INTERVAL = 2;//关键帧间隔，单位:s
+    private final int FRAME_INTERVAL = 1;//关键帧间隔
     private final int TIMEOUT_US = 10000;
 
     private MediaProjection projection;
@@ -41,13 +37,12 @@ public class MediaEncoder extends Thread {
     private int screen_width;
     private int screen_height;
     private int screen_dpi;
-    private int screen_bit = 600000;
+    private int screen_bit = 2000000;
     private AtomicBoolean mQuit = new AtomicBoolean(false);
     private EGLRender eglRender;
-    private Context context;
+    private Surface surface;
 
-    public MediaEncoder(Context context, MediaProjection projection, int screen_width, int screen_height, int screen_dpi) {
-        this.context = context;
+    public MediaEncoder(MediaProjection projection, int screen_width, int screen_height, int screen_dpi) {
         this.projection = projection;
         this.screen_width = screen_width;
         this.screen_height = screen_height;
@@ -67,14 +62,15 @@ public class MediaEncoder extends Thread {
             muxer = new MediaMuxer(Environment.getExternalStorageDirectory().getAbsolutePath() + "/test.mp4", MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
         } catch (IOException e) {
             Log.e("sam", e.getMessage(), e);
-
         }
         virtualDisplay = projection.createVirtualDisplay("screen", screen_width, screen_height, screen_dpi,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC,eglRender==null?surface: eglRender.getDecodeSurface(), null, null);
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC, eglRender == null ? surface : eglRender.getDecodeSurface(), null, null);
         startRecordScreen();
         release();
     }
-    private Surface surface;
+
+
+
     /**
      * 初始化编码器
      */
@@ -86,8 +82,8 @@ public class MediaEncoder extends Thread {
         mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, FRAME_INTERVAL);
         mEncoder = MediaCodec.createEncoderByType(mime_type);
         mEncoder.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-        surface=mEncoder.createInputSurface();
-        eglRender = new EGLRender(surface,context);
+        surface = mEncoder.createInputSurface();
+        eglRender = new EGLRender(surface);
         eglRender.setCallBack(new EGLRender.onFrameCallBack() {
             @Override
             public void onUpdate() {
@@ -95,23 +91,18 @@ public class MediaEncoder extends Thread {
             }
         });
         mEncoder.start();
-
     }
 
     /**
      * 开始录屏
      */
     private void startRecordScreen() {
-        if(eglRender!=null){
-            eglRender.start();
-        }else {
-            while (!mQuit.get()){
-                startEncode();
-            }
-        }
+        eglRender.start();
         release();
     }
-    private void startEncode(){
+
+    private void startEncode() {
+
         int index = mEncoder.dequeueOutputBuffer(mBufferInfo, TIMEOUT_US);
         if (index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
             resetOutputFormat();
@@ -127,13 +118,12 @@ public class MediaEncoder extends Thread {
             mEncoder.releaseOutputBuffer(index, false);
         }
     }
+
+
     private void encodeToVideoTrack(int index) {
         Log.e("---", "有了输出数据");
         ByteBuffer encodeData = mEncoder.getOutputBuffer(index);
         if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-            // The codec config data was pulled out and fed to the muxer when we got
-            // the INFO_OUTPUT_FORMAT_CHANGED status.
-            // Ignore it.
             Log.d(TAG, "ignoring BUFFER_FLAG_CODEC_CONFIG");
             mBufferInfo.size = 0;
         }
@@ -146,10 +136,11 @@ public class MediaEncoder extends Thread {
                     + ", offset=" + mBufferInfo.offset);
         }
         if (encodeData != null) {
-
             encodeData.position(mBufferInfo.offset);
             encodeData.limit(mBufferInfo.offset + mBufferInfo.size);
             muxer.writeSampleData(mVideoTrackIndex, encodeData, mBufferInfo);//写入文件
+//            byte[] bytes=new byte[mBufferInfo.size];
+//            encodeData.get(bytes,0,mBufferInfo.size);
             Log.i(TAG, "位置:" + mVideoTrackIndex + "\tsend:" + mBufferInfo.size + " bytes to muxer...");
         }
     }
@@ -157,24 +148,20 @@ public class MediaEncoder extends Thread {
     private int mVideoTrackIndex;
 
     private void resetOutputFormat() {
-        // should happen before receiving buffers, and should only happen once
-//        if (mMuxerStarted) {
-//            throw new IllegalStateException("output format already changed!");
-//        }
         MediaFormat newFormat = mEncoder.getOutputFormat();
         Log.i(TAG, "output format changed.\n new format: " + newFormat.toString());
         mVideoTrackIndex = muxer.addTrack(newFormat);
         muxer.start();
-//        mMuxerStarted = true;
         Log.i(TAG, "started media muxer, videoIndex=" + mVideoTrackIndex);
     }
 
     public void stopScreen() {
         mQuit.set(true);
-        if(eglRender!=null){
-        eglRender.stop();
+        if (eglRender != null) {
+            eglRender.stop();
         }
     }
+
     public void release() {
 
         if (mEncoder != null) {
@@ -185,9 +172,6 @@ public class MediaEncoder extends Thread {
         if (virtualDisplay != null) {
             virtualDisplay.release();
         }
-//        if ( != null) {
-//            mMediaProjection.stop();
-//        }
         if (muxer != null) {
             muxer.stop();
             muxer.release();
