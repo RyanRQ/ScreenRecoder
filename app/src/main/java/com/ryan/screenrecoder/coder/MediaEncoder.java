@@ -11,6 +11,7 @@ import android.os.Environment;
 import android.util.Log;
 import android.view.Surface;
 
+import com.ryan.screenrecoder.application.SysValue;
 import com.ryan.screenrecoder.glec.EGLRender;
 
 import java.io.IOException;
@@ -24,32 +25,66 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class MediaEncoder extends Thread {
     private final String TAG = "MediaEncoder";
 
-    private String mime_type = MediaFormat.MIMETYPE_VIDEO_AVC;
-    private final int FRAME_RATE = 30;//30fps
-    private final int FRAME_INTERVAL = 1;//关键帧间隔
-    private final int TIMEOUT_US = 10000;
+    private final String mime_type = MediaFormat.MIMETYPE_VIDEO_AVC;
 
+    //
+    private DisplayManager displayManager;
     private MediaProjection projection;
     private MediaCodec mEncoder;
     private VirtualDisplay virtualDisplay;
     private MediaMuxer muxer;
     private MediaCodec.BufferInfo mBufferInfo = new MediaCodec.BufferInfo();
-    private int screen_width;
-    private int screen_height;
-    private int screen_dpi;
-    private int screen_bit = 2000000;
-    private AtomicBoolean mQuit = new AtomicBoolean(false);
     private EGLRender eglRender;
     private Surface surface;
 
+
+    //屏幕相关
+    private int screen_width;
+    private int screen_height;
+    private int screen_dpi;
+
+
+    //编码参数相关
+    private int frame_bit = 2000000;//2MB
+    private  int frame_rate = 30;//这里指的是Mediacodec30张图为1组 ，并不是视屏本身的FPS
+    private  int frame_internal = 1;//关键帧间隔 一组加一个关键帧
+    private final   int TIMEOUT_US = 10000;
+    private int video_fps=30;
+
+
+    private AtomicBoolean mQuit = new AtomicBoolean(false);
+
     public MediaEncoder(MediaProjection projection, int screen_width, int screen_height, int screen_dpi) {
         this.projection = projection;
+       initScreenInfo(screen_width, screen_height, screen_dpi);
+    }
+    public MediaEncoder(DisplayManager displayManager,int screen_width, int screen_height, int screen_dpi){
+        this.displayManager=displayManager;
+        initScreenInfo(screen_width, screen_height, screen_dpi);
+    }
+    private void initScreenInfo( int screen_width, int screen_height, int screen_dpi){
         this.screen_width = screen_width;
         this.screen_height = screen_height;
         this.screen_dpi = screen_dpi;
     }
 
+    /**
+     * 设置视频FPS
+     * @param fps
+     */
+    public MediaEncoder setVideoFPS(int fps){
+        video_fps=fps;
+        return this;
+    }
 
+    /**
+     * 设置视屏编码采样率
+     * @param bit
+     */
+    public MediaEncoder setVideoBit(int bit){
+        frame_bit=bit;
+        return this;
+    }
     @Override
     public void run() {
         super.run();
@@ -63,13 +98,16 @@ public class MediaEncoder extends Thread {
         } catch (IOException e) {
             Log.e("sam", e.getMessage(), e);
         }
-        virtualDisplay = projection.createVirtualDisplay("screen", screen_width, screen_height, screen_dpi,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC, eglRender == null ? surface : eglRender.getDecodeSurface(), null, null);
+        if(projection!=null){
+            virtualDisplay = projection.createVirtualDisplay("screen", screen_width, screen_height, screen_dpi,
+                    DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC,eglRender.getDecodeSurface(), null, null);
+        }else {
+            virtualDisplay=displayManager.createVirtualDisplay("screen", screen_width, screen_height, screen_dpi,
+                    eglRender.getDecodeSurface(),  DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC);
+        }
         startRecordScreen();
         release();
     }
-
-
 
     /**
      * 初始化编码器
@@ -77,13 +115,13 @@ public class MediaEncoder extends Thread {
     private void prepareEncoder() throws IOException {
         MediaFormat mediaFormat = MediaFormat.createVideoFormat(mime_type, screen_width, screen_height);
         mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, screen_bit);
-        mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, FRAME_RATE);
-        mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, FRAME_INTERVAL);
+        mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, frame_bit);
+        mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, frame_rate);
+        mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, frame_internal);
         mEncoder = MediaCodec.createEncoderByType(mime_type);
         mEncoder.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
         surface = mEncoder.createInputSurface();
-        eglRender = new EGLRender(surface);
+        eglRender = new EGLRender(surface,screen_width,screen_height,video_fps);
         eglRender.setCallBack(new EGLRender.onFrameCallBack() {
             @Override
             public void onUpdate() {
@@ -102,27 +140,33 @@ public class MediaEncoder extends Thread {
     }
 
     private void startEncode() {
-
+        ByteBuffer[] byteBuffers=null;
+        if(SysValue.api<21){
+           byteBuffers=mEncoder.getOutputBuffers();
+        }
         int index = mEncoder.dequeueOutputBuffer(mBufferInfo, TIMEOUT_US);
         if (index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
             resetOutputFormat();
         } else if (index == MediaCodec.INFO_TRY_AGAIN_LATER) {
-            Log.d("---", "retrieving buffers time out!");
-            try {
-                // wait 10ms
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-            }
+//            Log.d("---", "retrieving buffers time out!");
+//            try {
+//                // wait 10ms
+//                Thread.sleep(10);
+//            } catch (InterruptedException e) {
+//            }
         } else if (index >= 0) {
-            encodeToVideoTrack(index);
+            if(SysValue.api<21){
+                encodeToVideoTrack(byteBuffers[index]);
+            }else {
+                encodeToVideoTrack(mEncoder.getOutputBuffer(index));
+            }
             mEncoder.releaseOutputBuffer(index, false);
         }
     }
 
+    private void encodeToVideoTrack(ByteBuffer encodeData) {
 
-    private void encodeToVideoTrack(int index) {
-        Log.e("---", "有了输出数据");
-        ByteBuffer encodeData = mEncoder.getOutputBuffer(index);
+//        ByteBuffer encodeData = mEncoder.getOutputBuffer(index);
         if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
             Log.d(TAG, "ignoring BUFFER_FLAG_CODEC_CONFIG");
             mBufferInfo.size = 0;
@@ -141,7 +185,7 @@ public class MediaEncoder extends Thread {
             muxer.writeSampleData(mVideoTrackIndex, encodeData, mBufferInfo);//写入文件
 //            byte[] bytes=new byte[mBufferInfo.size];
 //            encodeData.get(bytes,0,mBufferInfo.size);
-            Log.i(TAG, "位置:" + mVideoTrackIndex + "\tsend:" + mBufferInfo.size + " bytes to muxer...");
+            Log.e("---", "位置:" + mVideoTrackIndex + "\tsend:" + mBufferInfo.size + " bytes to muxer...");
         }
     }
 
@@ -163,7 +207,6 @@ public class MediaEncoder extends Thread {
     }
 
     public void release() {
-
         if (mEncoder != null) {
             mEncoder.stop();
             mEncoder.release();

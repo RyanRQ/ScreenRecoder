@@ -32,8 +32,9 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
 
     private Surface decodeSurface;
 
-    int mWidth = 1080;
-    int mHeight = 1920;
+    int mWidth;
+    int mHeight;
+    int video_interval;
     private boolean mFrameAvailable = true;
     private onFrameCallBack callBack;
 
@@ -46,12 +47,17 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
     }
 
 
-    public EGLRender(Surface surface) {
+    public EGLRender(Surface surface,int mWidth,int mHeight,int fps) {
+        this.mWidth=mWidth;
+        this.mHeight=mHeight;
+        initFPs(fps);
         eglSetup(surface);
         makeCurrent();
         setup();
     }
-
+    private void initFPs(int fps){
+        video_interval= 1000/fps;
+    }
     /**
      * Prepares EGL.  We want a GLES 2.0 context and a surface that supports pbuffer.
      */
@@ -148,7 +154,7 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
 
         if (VERBOSE) Log.d(TAG, "textureID=" + mTextureRender.getTextureId());
         mSurfaceTexture = new SurfaceTexture(mTextureRender.getTextureId());
-        mSurfaceTexture.setDefaultBufferSize(1080, 1920);
+        mSurfaceTexture.setDefaultBufferSize(mWidth, mHeight);
         mSurfaceTexture.setOnFrameAvailableListener(this);
         decodeSurface = new Surface(mSurfaceTexture);
     }
@@ -215,6 +221,7 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
         if (mFrameAvailable) {
             mFrameAvailable = false;
             mSurfaceTexture.updateTexImage();
+            Log.e("---","更新文理");
         }
     }
 
@@ -233,7 +240,7 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
 
     private static long computePresentationTimeNsec(int frameIndex) {
         final long ONE_BILLION = 1000000000;
-        return frameIndex * ONE_BILLION / 30;
+        return frameIndex * ONE_BILLION / 5;
     }
 
     private boolean start;
@@ -246,10 +253,12 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
             makeCurrent(1);
             awaitNewImage();
             drawImage();
-            callBack.onUpdate();
-            setPresentationTime(computePresentationTimeNsec(count++));
             current_time = System.currentTimeMillis();
-            if (current_time - time >= 125) {//todo 帧率控制
+            callBack.onUpdate();
+
+            if (current_time - time >= video_interval) {
+                //todo 帧率控制
+                setPresentationTime(computePresentationTimeNsec(count++));
                 swapBuffers();
                 time = current_time;
             }
