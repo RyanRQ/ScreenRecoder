@@ -32,11 +32,17 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
 
     private Surface decodeSurface;
 
-    int mWidth;
-    int mHeight;
-    int video_interval;
+    private int mWidth;
+    private int mHeight;
+    private int fps;
+    private int video_interval;
     private boolean mFrameAvailable = true;
     private onFrameCallBack callBack;
+
+
+    private boolean start;
+    private long time = 0;
+    private long current_time;
 
     public void setCallBack(onFrameCallBack callBack) {
         this.callBack = callBack;
@@ -56,6 +62,7 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
         setup();
     }
     private void initFPs(int fps){
+        this.fps=fps;
         video_interval= 1000/fps;
     }
     /**
@@ -238,26 +245,25 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
         mFrameAvailable = true;
     }
 
-    private static long computePresentationTimeNsec(int frameIndex) {
+    private long computePresentationTimeNsec(int frameIndex) {
         final long ONE_BILLION = 1000000000;
-        return frameIndex * ONE_BILLION / 5;
+        return frameIndex * ONE_BILLION /fps;
     }
 
-    private boolean start;
-    private long time = 0;
-    private long current_time;
 
+    /**
+     * 开始录屏
+     */
     public void start() {
         start = true;
         while (start) {
             makeCurrent(1);
             awaitNewImage();
-            drawImage();
             current_time = System.currentTimeMillis();
-            callBack.onUpdate();
-
             if (current_time - time >= video_interval) {
                 //todo 帧率控制
+                drawImage();
+                callBack.onUpdate();
                 setPresentationTime(computePresentationTimeNsec(count++));
                 swapBuffers();
                 time = current_time;
