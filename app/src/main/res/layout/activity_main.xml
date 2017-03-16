@@ -1,8 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    >
-
+    android:orientation="vertical"
+    tools:context="com.ryan.screenrecoder.ui.activity.MainActivity">
+    <Button
+        android:id="@+id/button_local_preview"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="本地预览"
+        />
+    <Button
+        android:id="@+id/button_local_save"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="本地保存"/>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        tools:layout_editor_absoluteY="0dp"
+        tools:layout_editor_absoluteX="8dp">
+        <Button
+            android:id="@+id/button_tcp_send"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="tcp传送"/>
+        <EditText
+            android:id="@+id/edittext_tcp_send_ip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="请输入ip地址"/>
+    </LinearLayout>
 </LinearLayout>

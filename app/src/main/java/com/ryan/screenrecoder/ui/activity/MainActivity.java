@@ -5,46 +5,53 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.SurfaceTexture;
 import android.hardware.display.DisplayManager;
-import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.util.DisplayMetrics;
-import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.Toast;
 
 import com.ryan.screenrecoder.R;
+import com.ryan.screenrecoder.application.ScreenApplication;
 import com.ryan.screenrecoder.application.SysValue;
-import com.ryan.screenrecoder.coder.MediaEncoder;
-import com.ryan.screenrecoder.util.SysUtil;
 
-
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     private final int REQUEST_CODE = 0x11;
     private final int PERMISSION_CODE = 0x12;
 
+
+    private Button button_local_preview;
+    private Button button_local_save;
+    private Button button_tcp_send;
+    private EditText edittext_tcp_send_ip;
+
     private MediaProjectionManager mediaProjectionManager;
-    private MediaProjection mediaProjection;
-    private MediaEncoder encoder;
-    private DisplayManager displaymanager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        button_local_preview = ((Button) findViewById(R.id.button_local_preview));
+        button_local_save = ((Button) findViewById(R.id.button_local_save));
+        button_tcp_send = ((Button) findViewById(R.id.button_tcp_send));
+        edittext_tcp_send_ip = ((EditText) findViewById(R.id.edittext_tcp_send_ip));
+        button_local_preview.setOnClickListener(this);
+        button_local_save.setOnClickListener(this);
+        button_tcp_send.setOnClickListener(this);
         if (SysValue.api >= Build.VERSION_CODES.M) {
             getAppPermission();
         } else if (SysValue.api >= 21) {
             getMeidProjection();
         } else {
             //todo 需要root权限或系统签名
-            displaymanager = ((DisplayManager) getSystemService(Context.DISPLAY_SERVICE));
-            startRecording();
+            ScreenApplication.getInstance().setDisplayManager(((DisplayManager) getSystemService(Context.DISPLAY_SERVICE)));
         }
     }
 
@@ -63,24 +70,10 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE && resultCode == Activity.RESULT_OK) {
-            mediaProjection = mediaProjectionManager.getMediaProjection(resultCode, data);
-            startRecording();
+            ScreenApplication.getInstance().setMediaProjection(mediaProjectionManager.getMediaProjection(resultCode, data));
         } else {
             Toast.makeText(this, "无法录制屏幕", Toast.LENGTH_SHORT).show();
         }
-    }
-
-    private void startRecording() {
-        if (SysValue.api >= 21) {
-            encoder = new MediaEncoder(mediaProjection, SysValue.screen_width, SysValue.screen_height, SysValue.screen_dpi)
-                    .setVideoBit(3000000)
-                    .setVideoFPS(8);
-        } else {
-            encoder = new MediaEncoder(displaymanager, SysValue.screen_width, SysValue.screen_height, SysValue.screen_dpi)
-                    .setVideoBit(3000000)
-                    .setVideoFPS(5);
-        }
-        encoder.start();
     }
 
     @Override
@@ -94,8 +87,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        encoder.stopScreen();
+    public void onClick(View v) {
+        switch (v.getId()) {
+            case R.id.button_local_preview:
+                //todo 本地预览
+                break;
+            case R.id.button_local_save:
+                //todo 本地保存
+                break;
+            case R.id.button_tcp_send:
+                //todo 网络传送
+                startActivity(new Intent(this, TcpSendActivity.class));
+                break;
+        }
     }
 }

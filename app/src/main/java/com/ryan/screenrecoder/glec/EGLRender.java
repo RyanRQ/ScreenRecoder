@@ -1,6 +1,7 @@
 package com.ryan.screenrecoder.glec;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
 import android.opengl.EGL14;
 import android.opengl.EGLConfig;
@@ -12,6 +13,10 @@ import android.opengl.GLES20;
 import android.opengl.Matrix;
 import android.util.Log;
 import android.view.Surface;
+
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
+
 
 /**
  * Created by zx315476228 on 17-3-3.
@@ -38,7 +43,7 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
     private int video_interval;
     private boolean mFrameAvailable = true;
     private onFrameCallBack callBack;
-
+    private boolean hasCutScreen = false;
 
     private boolean start;
     private long time = 0;
@@ -50,21 +55,25 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
 
     public interface onFrameCallBack {
         void onUpdate();
+
+        void onCutScreen(Bitmap bitmap);
     }
 
 
-    public EGLRender(Surface surface,int mWidth,int mHeight,int fps) {
-        this.mWidth=mWidth;
-        this.mHeight=mHeight;
+    public EGLRender(Surface surface, int mWidth, int mHeight, int fps) {
+        this.mWidth = mWidth;
+        this.mHeight = mHeight;
         initFPs(fps);
         eglSetup(surface);
         makeCurrent();
         setup();
     }
-    private void initFPs(int fps){
-        this.fps=fps;
-        video_interval= 1000/fps;
+
+    private void initFPs(int fps) {
+        this.fps = fps;
+        video_interval = 1000 / fps;
     }
+
     /**
      * Prepares EGL.  We want a GLES 2.0 context and a surface that supports pbuffer.
      */
@@ -156,7 +165,7 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
      * Creates interconnected instances of TextureRender, SurfaceTexture, and Surface.
      */
     private void setup() {
-        mTextureRender = new STextureRender();
+        mTextureRender = new STextureRender(mWidth, mHeight);
         mTextureRender.surfaceCreated();
 
         if (VERBOSE) Log.d(TAG, "textureID=" + mTextureRender.getTextureId());
@@ -228,7 +237,6 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
         if (mFrameAvailable) {
             mFrameAvailable = false;
             mSurfaceTexture.updateTexImage();
-            Log.e("---","更新文理");
         }
     }
 
@@ -247,9 +255,12 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
 
     private long computePresentationTimeNsec(int frameIndex) {
         final long ONE_BILLION = 1000000000;
-        return frameIndex * ONE_BILLION /fps;
+        return frameIndex * ONE_BILLION / fps;
     }
 
+    public void drawImage() {
+        mTextureRender.drawFrame();
+    }
 
     /**
      * 开始录屏
@@ -266,19 +277,45 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
                 callBack.onUpdate();
                 setPresentationTime(computePresentationTimeNsec(count++));
                 swapBuffers();
+                if (hasCutScreen) {
+                    getScreen();
+                    hasCutScreen = false;
+                }
                 time = current_time;
             }
         }
     }
 
 
+
+    private void getScreen() {
+        IntBuffer buffer = IntBuffer.allocate(mWidth * mHeight);
+        buffer.position(0);
+        GLES20.glReadPixels(0, 0, mWidth, mHeight, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buffer);
+        int[] modelData = buffer.array();
+        int[] ArData = new int[modelData.length];
+        int offset1, offset2;
+        for (int i = 0; i < mHeight; i++) {
+            offset1 = i * mWidth;
+            offset2 = (mHeight - i - 1) * mWidth;
+            for (int j = 0; j < mWidth; j++) {
+                int texturePixel = modelData[offset1 + j];
+                int blue = (texturePixel >> 16) & 0xff;
+                int red = (texturePixel << 16) & 0x00ff0000;
+                int pixel = (texturePixel & 0xff00ff00) | red | blue;
+                ArData[offset2 + j] = pixel;
+            }
+        }
+        Bitmap bitmap = Bitmap.createBitmap(ArData, mWidth, mHeight, Bitmap.Config.ARGB_8888);
+        modelData = null;
+        ArData = null;
+        buffer.clear();
+        callBack.onCutScreen(bitmap);
+    }
+    public void cutScreen(){
+        hasCutScreen=true;
+    }
     public void stop() {
         start = false;
     }
-
-    public void drawImage() {
-        mTextureRender.drawFrame();
-    }
-
-
 }

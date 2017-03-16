@@ -7,6 +7,7 @@ import android.opengl.Matrix;
 import android.util.Log;
 
 import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 
 /**
  * Created by guoheng on 2016/8/31.
@@ -68,6 +69,14 @@ public  class STextureRender {
     private int muSTMatrixHandle;
     private int maPositionHandle;
     private int maTextureHandle;
+    private int mWidth;
+    private int mHeight;
+
+    public STextureRender(int mwidth, int mHeight) {
+        this();
+        this.mWidth = mwidth;
+        this.mHeight = mHeight;
+    }
 
     public STextureRender() {
         Matrix.setIdentityM(mSTMatrix, 0);
@@ -162,7 +171,6 @@ public  class STextureRender {
         GLES20.glUseProgram(0);
 
     }
-
 
 
 }
