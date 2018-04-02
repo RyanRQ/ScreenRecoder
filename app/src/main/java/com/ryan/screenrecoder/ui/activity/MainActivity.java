@@ -37,7 +37,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         button_local_preview = ((Button) findViewById(R.id.button_local_preview));
         button_local_save = ((Button) findViewById(R.id.button_local_save));
         button_tcp_send = ((Button) findViewById(R.id.button_tcp_send));
