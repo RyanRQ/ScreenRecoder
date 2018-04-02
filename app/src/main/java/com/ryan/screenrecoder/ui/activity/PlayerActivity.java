@@ -1,5 +1,6 @@
 package com.ryan.screenrecoder.ui.activity;
 
+import android.app.Activity;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
 import android.support.v7.app.AppCompatActivity;
@@ -14,7 +15,7 @@ import com.ryan.screenrecoder.conn.TcpServerThread;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-public class PlayerActivity extends AppCompatActivity implements SurfaceHolder.Callback, TcpServerThread.onFrameCallBack {
+public class PlayerActivity extends Activity implements SurfaceHolder.Callback, TcpServerThread.onFrameCallBack {
 
     private SurfaceView surfaceview_play;
     private MediaCodec decoder;

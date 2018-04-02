@@ -23,7 +23,7 @@ import com.ryan.screenrecoder.application.ScreenApplication;
 import com.ryan.screenrecoder.application.SysValue;
 import com.ryan.screenrecoder.util.SysUtil;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+public class MainActivity extends Activity implements View.OnClickListener {
     private final int REQUEST_CODE = 0x11;
     private final int PERMISSION_CODE = 0x12;
 
