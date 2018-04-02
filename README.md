@@ -1,7 +1,9 @@
 # ScreenRecoder
 当前版本在EGLRender类中FPS写死为8,供参考及使用
 
-下一版本会把整套代码整理一遍,并会提供从录屏到使用OGEL控制FPS完整思路.
+
+##版本
+###V1.1 修复部分bug,接收端与发送端合并
 
 
 ## Future：
