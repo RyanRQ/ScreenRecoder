@@ -41,7 +41,20 @@ public class TcpSendActivity extends AppCompatActivity implements TcpSendThread.
     private TextView textview_info;
     private Button button_cutscreen;
     private ImageView imageview_show;
-
+    private Handler handler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            try {
+                FileOutputStream outputStream = new FileOutputStream(Environment.getExternalStorageDirectory().getAbsolutePath() + "/111.png");
+                Bitmap bitmap = (Bitmap) msg.obj;
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            imageview_show.setImageBitmap((Bitmap) msg.obj);
+        }
+    };
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -51,11 +64,12 @@ public class TcpSendActivity extends AppCompatActivity implements TcpSendThread.
         textview_info = ((TextView) findViewById(R.id.textview_info));
         EventBus.getDefault().register(this);
         tcpSendThread = new TcpSendThread(this);
+        tcpSendThread.setIp(getIntent().getStringExtra("ip"));
         tcpSendThread.start();
         button_cutscreen.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-               encoder.cutScreen();
+                encoder.cutScreen();
             }
         });
     }
@@ -64,7 +78,7 @@ public class TcpSendActivity extends AppCompatActivity implements TcpSendThread.
         if (SysValue.api >= 21) {
             MediaProjection mediaProjection = ScreenApplication.getInstance().getMediaProjection();
             if (mediaProjection != null) {
-                encoder = new MediaEncoder(mediaProjection, 1280, 720, SysValue.screen_dpi)
+                encoder = new MediaEncoder(mediaProjection, 1080, 1920, SysValue.screen_dpi)
                         .setVideoBit(BIT)
                         .setVideoFPS(FPS);
             }
@@ -90,7 +104,8 @@ public class TcpSendActivity extends AppCompatActivity implements TcpSendThread.
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        encoder.stopScreen();
+        encoder.stopScreen();//关闭截屏
+        tcpSendThread.close();//关闭连接
         EventBus.getDefault().unregister(this);
     }
 
@@ -112,20 +127,8 @@ public class TcpSendActivity extends AppCompatActivity implements TcpSendThread.
 //                } catch (FileNotFoundException e) {
 //                    e.printStackTrace();
 //                }
-        handler.obtainMessage(0,bitmap).sendToTarget();
+        handler.obtainMessage(0, bitmap).sendToTarget();
     }
-    private Handler handler=new Handler(){
-        @Override
-        public void handleMessage(Message msg) {
-            super.handleMessage(msg);
-            try {
-                FileOutputStream outputStream=new FileOutputStream(Environment.getExternalStorageDirectory().getAbsolutePath()+"/111.png");
-                Bitmap bitmap= (Bitmap) msg.obj;
-                bitmap.compress(Bitmap.CompressFormat.PNG,100,outputStream);
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
-            imageview_show.setImageBitmap((Bitmap) msg.obj);
-        }
-    };
+
+
 }

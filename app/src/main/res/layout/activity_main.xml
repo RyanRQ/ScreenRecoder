@@ -6,16 +6,11 @@
     android:orientation="vertical"
     tools:context="com.ryan.screenrecoder.ui.activity.MainActivity">
     <Button
-        android:id="@+id/button_local_preview"
+        android:id="@+id/button_tcp_preview"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="本地预览"
+        android:text="接收端"
         />
-    <Button
-        android:id="@+id/button_local_save"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="本地保存"/>
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -26,11 +21,11 @@
             android:id="@+id/button_tcp_send"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="tcp传送"/>
+            android:text="发送端"/>
         <EditText
             android:id="@+id/edittext_tcp_send_ip"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="请输入ip地址"/>
+            android:hint="请输入ip地址,默认192.168.0.132"/>
     </LinearLayout>
 </LinearLayout>

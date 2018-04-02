@@ -16,17 +16,23 @@ import java.net.Socket;
  */
 
 public class TcpSendThread extends Thread {
-    private final int port=6111;
-    private String ip="192.168.0.132";
+    private final int port = 6111;
+    private String ip = "192.168.0.132";
     private BufferedInputStream inputStream;
     private BufferedOutputStream outputStream;
     private onSendCallBack onSendCallBack;
+    private boolean isRuning;
+    private Socket socket;
+
+    public void setIp(String ip) {
+        this.ip = ip;
+    }
 
     public void setOnSendCallBack(TcpSendThread.onSendCallBack onSendCallBack) {
         this.onSendCallBack = onSendCallBack;
     }
 
-    public interface onSendCallBack{
+    public interface onSendCallBack {
         void onConnSuccess();
     }
 
@@ -39,15 +45,16 @@ public class TcpSendThread extends Thread {
         super.run();
         try {
             EventBus.getDefault().post(new EventLogBean("等待连接"));
-            Socket socket=new Socket(ip,port);
-            Log.e("---","连接成功");
+            socket = new Socket(ip, port);
+            Log.e("---", "连接成功");
             EventBus.getDefault().post(new EventLogBean("连接成功!!!"));
-            inputStream=new BufferedInputStream(socket.getInputStream());
-            outputStream=new BufferedOutputStream(socket.getOutputStream());
+            inputStream = new BufferedInputStream(socket.getInputStream());
+            outputStream = new BufferedOutputStream(socket.getOutputStream());
             onSendCallBack.onConnSuccess();
-            while (true){
-                int readSize=inputStream.available();
-                if(readSize<4){
+            isRuning = true;
+            while (isRuning) {
+                int readSize = inputStream.available();
+                if (readSize < 4) {
                     try {
                         Thread.sleep(10);
                     } catch (InterruptedException e) {
@@ -58,18 +65,38 @@ public class TcpSendThread extends Thread {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        close();
     }
-    public void sendMessage(byte[] data){
+
+    private void closeConn() {
+
+        try {
+            if (inputStream != null) {
+                inputStream.close();
+            }
+            if (outputStream != null) {
+                outputStream.close();
+            }
+            if (socket != null) {
+                socket.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void sendMessage(byte[] data) {
         byte[] content = new byte[data.length + 4];
         System.arraycopy(intToBytes(data.length), 0, content, 0, 4);
-        System.arraycopy(data,0,content,4,data.length);
+        System.arraycopy(data, 0, content, 4, data.length);
         try {
-            outputStream.write(content,0,content.length);
+            outputStream.write(content, 0, content.length);
             outputStream.flush();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
+
     public static byte[] intToBytes(int value) {
         byte[] byte_src = new byte[4];
         byte_src[3] = (byte) ((value & 0xFF000000) >> 24);
@@ -78,6 +105,7 @@ public class TcpSendThread extends Thread {
         byte_src[0] = (byte) ((value & 0x000000FF));
         return byte_src;
     }
+
     public static byte[] long2Bytes(long num) {
         byte[] byteNum = new byte[8];
         for (int ix = 0; ix < 8; ++ix) {
@@ -85,5 +113,9 @@ public class TcpSendThread extends Thread {
             byteNum[ix] = (byte) ((num >> offset) & 0xff);
         }
         return byteNum;
+    }
+
+    public void close() {
+        isRuning = false;
     }
 }

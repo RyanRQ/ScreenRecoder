@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -20,14 +21,14 @@ import android.widget.Toast;
 import com.ryan.screenrecoder.R;
 import com.ryan.screenrecoder.application.ScreenApplication;
 import com.ryan.screenrecoder.application.SysValue;
+import com.ryan.screenrecoder.util.SysUtil;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     private final int REQUEST_CODE = 0x11;
     private final int PERMISSION_CODE = 0x12;
 
 
-    private Button button_local_preview;
-    private Button button_local_save;
+    private Button button_tcp_preview;
     private Button button_tcp_send;
     private EditText edittext_tcp_send_ip;
 
@@ -37,12 +38,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        button_local_preview = ((Button) findViewById(R.id.button_local_preview));
-        button_local_save = ((Button) findViewById(R.id.button_local_save));
+        button_tcp_preview = ((Button) findViewById(R.id.button_tcp_preview));
         button_tcp_send = ((Button) findViewById(R.id.button_tcp_send));
         edittext_tcp_send_ip = ((EditText) findViewById(R.id.edittext_tcp_send_ip));
-        button_local_preview.setOnClickListener(this);
-        button_local_save.setOnClickListener(this);
+        button_tcp_preview.setOnClickListener(this);
         button_tcp_send.setOnClickListener(this);
         if (SysValue.api >= Build.VERSION_CODES.M) {
             getAppPermission();
@@ -88,15 +87,23 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
-            case R.id.button_local_preview:
-                //todo 本地预览
-                break;
-            case R.id.button_local_save:
-                //todo 本地保存
+            case R.id.button_tcp_preview:
+                //todo 接收端
+                startActivity(new Intent(this,PlayerActivity.class));
                 break;
             case R.id.button_tcp_send:
-                //todo 网络传送
-                startActivity(new Intent(this, TcpSendActivity.class));
+                //todo 发送端
+                String ip = edittext_tcp_send_ip.getText().toString();
+                if (TextUtils.isEmpty(ip)) {
+                    ip = "192.168.0.198";
+                }
+                if (!SysUtil.isIpAddress(ip)) {
+                    Toast.makeText(this, "请输入有效的IP地址", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                Intent intent = new Intent(this, TcpSendActivity.class);
+                intent.putExtra("ip", ip);
+                startActivity(intent);
                 break;
         }
     }
