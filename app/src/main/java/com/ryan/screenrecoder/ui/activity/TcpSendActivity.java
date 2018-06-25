@@ -36,7 +36,7 @@ public class TcpSendActivity extends AppCompatActivity implements TcpSendThread.
     private static final int HANDLER_CUT_SCRENN_SUCCESS = 1;
 
     private static final int BIT = 3000000;
-    private static final int FPS = 60;
+    private static final int FPS = 8;//FPS
 
     private MediaEncoder encoder;
 
