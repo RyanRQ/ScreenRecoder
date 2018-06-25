@@ -20,7 +20,7 @@ public class TcpSendThread extends Thread {
     private String ip = "192.168.0.132";
     private BufferedInputStream inputStream;
     private BufferedOutputStream outputStream;
-    private onSendCallBack onSendCallBack;
+    private OnConnCallBack onSendCallBack;
     private boolean isRuning;
     private Socket socket;
 
@@ -28,15 +28,15 @@ public class TcpSendThread extends Thread {
         this.ip = ip;
     }
 
-    public void setOnSendCallBack(TcpSendThread.onSendCallBack onSendCallBack) {
+    public void setOnSendCallBack(OnConnCallBack onSendCallBack) {
         this.onSendCallBack = onSendCallBack;
     }
 
-    public interface onSendCallBack {
-        void onConnSuccess();
+    public interface OnConnCallBack {
+        void onConnSuccess(String ip);
     }
 
-    public TcpSendThread(TcpSendThread.onSendCallBack onSendCallBack) {
+    public TcpSendThread(OnConnCallBack onSendCallBack) {
         this.onSendCallBack = onSendCallBack;
     }
 
@@ -50,7 +50,7 @@ public class TcpSendThread extends Thread {
             EventBus.getDefault().post(new EventLogBean("连接成功!!!"));
             inputStream = new BufferedInputStream(socket.getInputStream());
             outputStream = new BufferedOutputStream(socket.getOutputStream());
-            onSendCallBack.onConnSuccess();
+            onSendCallBack.onConnSuccess(ip);
             isRuning = true;
             while (isRuning) {
                 int readSize = inputStream.available();

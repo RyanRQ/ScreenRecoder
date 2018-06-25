@@ -1,31 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     >
-    <LinearLayout
+    <VideoView
+        android:id="@+id/videoView_test"
         android:layout_width="match_parent"
-        android:layout_height="500dp"
-        android:orientation="horizontal">
-        <Button
-            android:id="@+id/button_cutscreen"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="截图"/>
-        <ImageView
-            android:id="@+id/imageview_show"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="#f00"
-            android:padding="1dp"
-            android:src="@mipmap/ic_launcher"/>
-    </LinearLayout>
-    <TextView
-        android:id="@+id/textview_info"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone"
-        android:textSize="15sp"/>
-
-</LinearLayout>
+        android:layout_height="match_parent" />
+    <Button
+        android:id="@+id/button_cutscreen"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="20dp"
+        android:text="截图"/>
+</RelativeLayout>

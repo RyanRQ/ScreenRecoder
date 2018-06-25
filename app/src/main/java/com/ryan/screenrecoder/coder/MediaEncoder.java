@@ -3,7 +3,6 @@ package com.ryan.screenrecoder.coder;
 import android.graphics.Bitmap;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
-import android.media.ImageReader;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
@@ -11,6 +10,7 @@ import android.media.MediaMuxer;
 import android.media.projection.MediaProjection;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 import android.view.Surface;
@@ -18,19 +18,19 @@ import android.view.Surface;
 import com.ryan.screenrecoder.application.SysValue;
 import com.ryan.screenrecoder.bean.EventLogBean;
 import com.ryan.screenrecoder.glec.EGLRender;
-import com.ryan.screenrecoder.util.ObtainSPSAndPPS;
 
 import org.greenrobot.eventbus.EventBus;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Created by ryan on 2017/2/23 0023.
  */
 
 public class MediaEncoder extends Thread {
+
+
     private final String TAG = "MediaEncoder";
 
     private final String mime_type = MediaFormat.MIMETYPE_VIDEO_AVC;
@@ -40,7 +40,6 @@ public class MediaEncoder extends Thread {
     private MediaProjection projection;
     private MediaCodec mEncoder;
     private VirtualDisplay virtualDisplay;
-    private MediaMuxer muxer;
     private MediaCodec.BufferInfo mBufferInfo = new MediaCodec.BufferInfo();
     private EGLRender eglRender;
     private Surface surface;
@@ -62,13 +61,13 @@ public class MediaEncoder extends Thread {
     private byte[] pps=null;
 
 
-    private onScreenCallBack onScreenCallBack;
+    private OnScreenCallBack onScreenCallBack;
 
-    public void setOnScreenCallBack(MediaEncoder.onScreenCallBack onScreenCallBack) {
+    public void setOnScreenCallBack(OnScreenCallBack onScreenCallBack) {
         this.onScreenCallBack = onScreenCallBack;
     }
 
-    public interface onScreenCallBack {
+    public interface OnScreenCallBack {
         void onScreenInfo(byte[] bytes);
         void onCutScreen(Bitmap bitmap);
     }
@@ -116,11 +115,6 @@ public class MediaEncoder extends Thread {
             prepareEncoder();
         } catch (IOException e) {
             e.printStackTrace();
-        }
-        try {
-            muxer = new MediaMuxer(Environment.getExternalStorageDirectory().getAbsolutePath() + "/test.mp4", MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
-        } catch (IOException e) {
-            Log.e("sam", e.getMessage(), e);
         }
         if (projection != null) {
             virtualDisplay = projection.createVirtualDisplay("screen", screen_width, screen_height, screen_dpi,
@@ -234,9 +228,7 @@ public class MediaEncoder extends Thread {
     private void resetOutputFormat() {
         MediaFormat newFormat = mEncoder.getOutputFormat();
         Log.i(TAG, "output format changed.\n new format: " + newFormat.toString());
-        mVideoTrackIndex = muxer.addTrack(newFormat);
         getSpsPpsByteBuffer(newFormat);
-        muxer.start();
         Log.i(TAG, "started media muxer, videoIndex=" + mVideoTrackIndex);
     }
 
@@ -265,11 +257,6 @@ public class MediaEncoder extends Thread {
         }
         if (virtualDisplay != null) {
             virtualDisplay.release();
-        }
-        if (muxer != null) {
-            muxer.stop();
-            muxer.release();
-            muxer = null;
         }
     }
     public void cutScreen(){

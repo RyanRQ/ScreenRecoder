@@ -11,11 +11,16 @@ import android.opengl.EGLExt;
 import android.opengl.EGLSurface;
 import android.opengl.GLES20;
 import android.opengl.Matrix;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.util.Log;
 import android.view.Surface;
 
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 /**
@@ -23,6 +28,7 @@ import java.nio.IntBuffer;
  */
 
 public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
+    private final int HANDLER_PHOTO_CALLBACK = 0;
     private static final String TAG = "EncodeDecodeSurface";
     private static final boolean VERBOSE = false;           // lots of logging
 
@@ -49,13 +55,56 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
     private long time = 0;
     private long current_time;
 
+    private Handler handler = new Handler(Looper.getMainLooper()) {
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            switch (msg.what) {
+                case HANDLER_PHOTO_CALLBACK:
+                    if (callBack != null && msg.obj != null)
+                        callBack.onCutScreen((Bitmap) msg.obj);
+                    break;
+            }
+        }
+    };
+    private ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor();
+
+    private class CutScreeenThread implements Runnable {
+        private int[] modelData;
+
+        public CutScreeenThread(int[] modelData) {
+            this.modelData = modelData;
+        }
+
+        @Override
+        public void run() {
+
+            int[] ArData = new int[modelData.length];
+            int offset1, offset2;
+            for (int i = 0; i < mHeight; i++) {
+                offset1 = i * mWidth;
+                offset2 = (mHeight - i - 1) * mWidth;
+                for (int j = 0; j < mWidth; j++) {
+                    int texturePixel = modelData[offset1 + j];
+                    int blue = (texturePixel >> 16) & 0xff;
+                    int red = (texturePixel << 16) & 0x00ff0000;
+                    int pixel = (texturePixel & 0xff00ff00) | red | blue;
+                    ArData[offset2 + j] = pixel;
+                }
+            }
+            Bitmap bitmap = Bitmap.createBitmap(ArData, mWidth, mHeight, Bitmap.Config.ARGB_8888);
+            modelData = null;
+            ArData = null;
+
+            handler.obtainMessage(HANDLER_PHOTO_CALLBACK, bitmap).sendToTarget();
+        }
+    }
     public void setCallBack(onFrameCallBack callBack) {
         this.callBack = callBack;
     }
 
     public interface onFrameCallBack {
         void onUpdate();
-
         void onCutScreen(Bitmap bitmap);
     }
 
@@ -287,30 +336,16 @@ public class EGLRender implements SurfaceTexture.OnFrameAvailableListener {
     }
 
 
-
+    /**
+     * 获取当前屏幕信息
+     */
     private void getScreen() {
         IntBuffer buffer = IntBuffer.allocate(mWidth * mHeight);
         buffer.position(0);
         GLES20.glReadPixels(0, 0, mWidth, mHeight, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buffer);
         int[] modelData = buffer.array();
-        int[] ArData = new int[modelData.length];
-        int offset1, offset2;
-        for (int i = 0; i < mHeight; i++) {
-            offset1 = i * mWidth;
-            offset2 = (mHeight - i - 1) * mWidth;
-            for (int j = 0; j < mWidth; j++) {
-                int texturePixel = modelData[offset1 + j];
-                int blue = (texturePixel >> 16) & 0xff;
-                int red = (texturePixel << 16) & 0x00ff0000;
-                int pixel = (texturePixel & 0xff00ff00) | red | blue;
-                ArData[offset2 + j] = pixel;
-            }
-        }
-        Bitmap bitmap = Bitmap.createBitmap(ArData, mWidth, mHeight, Bitmap.Config.ARGB_8888);
-        modelData = null;
-        ArData = null;
         buffer.clear();
-        callBack.onCutScreen(bitmap);
+        singleThreadExecutor.execute(new CutScreeenThread(modelData));
     }
     public void cutScreen(){
         hasCutScreen=true;

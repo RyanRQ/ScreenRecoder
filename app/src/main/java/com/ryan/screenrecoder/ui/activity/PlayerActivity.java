@@ -21,6 +21,7 @@ public class PlayerActivity extends Activity implements SurfaceHolder.Callback, 
     private MediaCodec decoder;
     private int TIME_INTERNAL = 1000;
     private int mCount = 0;
+    private TcpServerThread serverThread;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -32,7 +33,8 @@ public class PlayerActivity extends Activity implements SurfaceHolder.Callback, 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
         initMediaDecoder(holder.getSurface());
-        new TcpServerThread(this).start();
+        serverThread=new TcpServerThread(this);
+        serverThread.start();
     }
 
     @Override
@@ -78,5 +80,6 @@ public class PlayerActivity extends Activity implements SurfaceHolder.Callback, 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        serverThread.close();
     }
 }

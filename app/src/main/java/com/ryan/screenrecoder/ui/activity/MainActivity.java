@@ -21,12 +21,13 @@ import android.widget.Toast;
 import com.ryan.screenrecoder.R;
 import com.ryan.screenrecoder.application.ScreenApplication;
 import com.ryan.screenrecoder.application.SysValue;
+import com.ryan.screenrecoder.util.SharedUtil;
 import com.ryan.screenrecoder.util.SysUtil;
 
 public class MainActivity extends Activity implements View.OnClickListener {
     private final int REQUEST_CODE = 0x11;
     private final int PERMISSION_CODE = 0x12;
-
+    private static final String DEFAULT_IP = "192.168.0.132";
 
     private Button button_tcp_preview;
     private Button button_tcp_send;
@@ -41,6 +42,7 @@ public class MainActivity extends Activity implements View.OnClickListener {
         button_tcp_preview = ((Button) findViewById(R.id.button_tcp_preview));
         button_tcp_send = ((Button) findViewById(R.id.button_tcp_send));
         edittext_tcp_send_ip = ((EditText) findViewById(R.id.edittext_tcp_send_ip));
+        edittext_tcp_send_ip.setText(SharedUtil.init(this).getIp());
         button_tcp_preview.setOnClickListener(this);
         button_tcp_send.setOnClickListener(this);
         if (SysValue.api >= Build.VERSION_CODES.M) {
@@ -95,7 +97,7 @@ public class MainActivity extends Activity implements View.OnClickListener {
                 //todo 发送端
                 String ip = edittext_tcp_send_ip.getText().toString();
                 if (TextUtils.isEmpty(ip)) {
-                    ip = "192.168.0.198";
+                    ip = DEFAULT_IP;
                 }
                 if (!SysUtil.isIpAddress(ip)) {
                     Toast.makeText(this, "请输入有效的IP地址", Toast.LENGTH_SHORT).show();

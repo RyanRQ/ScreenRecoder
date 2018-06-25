@@ -19,6 +19,7 @@ public class TcpServerThread extends Thread {
     private BufferedInputStream dataInputStream;
     private onFrameCallBack callBack;
     private long timer_size;
+    private boolean isStart=true;
     private Timer timer=new Timer();
     private TimerTask timerTask=new TimerTask() {
         @Override
@@ -34,6 +35,9 @@ public class TcpServerThread extends Thread {
     public interface onFrameCallBack{
         void onFrame(byte[] data);
     }
+    public void close(){
+        isStart=false;
+    }
     @Override
     public void run() {
         super.run();
@@ -42,7 +46,7 @@ public class TcpServerThread extends Thread {
             Socket clientSocket=serverSocket.accept();
             timer.schedule(timerTask,0,1000);
             dataInputStream=new BufferedInputStream(clientSocket.getInputStream());
-            while (true){
+            while (isStart){
                 int readsize = dataInputStream.available();
                 int ret = 0;
                 if (readsize < 4) {
@@ -59,7 +63,12 @@ public class TcpServerThread extends Thread {
                 } while (ret < 4);
                 paseTeacherMessage(tmpArray);
             }
-
+            if(dataInputStream!=null)
+                dataInputStream.close();
+            if(clientSocket!=null)
+                clientSocket.close();
+            if(serverSocket!=null)
+                serverSocket.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -79,7 +88,6 @@ public class TcpServerThread extends Thread {
                 ret += dataInputStream.read(tmpArray, ret, size - ret);
             } while (ret < size);
             callBack.onFrame(tmpArray);
-
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -103,4 +111,5 @@ public class TcpServerThread extends Thread {
         }
         return num;
     }
+
 }
