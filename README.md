@@ -1,5 +1,5 @@
 # ScreenRecoder
-当前版本在EGLRender类中FPS写死为8,供参考及使用
+当前版本在EGLRender类中FPS写死为8,供参考及使用</br>
 使用方法:
 1.两台安卓设备处于同一网段，设备1先开启接收端，另一台输入设备1的IP地址，开启发送端即可
 ![image](https://github.com/RyanRQ/ScreenRecoder/blob/master/show.jpg)
